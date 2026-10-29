@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.TvHome" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+    <color name="background">#FF101114</color>
+</resources>

@@ -1,0 +1,75 @@
+package com.jayked.tvhome
+
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jayked.tvhome.data.WatchNextRepository
+import com.jayked.tvhome.ui.HomeScreen
+import com.jayked.tvhome.ui.TvHomeTheme
+
+class MainActivity : ComponentActivity() {
+    private val viewModel: HomeViewModel by viewModels()
+
+    /** Bumped when Home is pressed while already on the home screen, to scroll back to the top. */
+    private var homePresses by mutableIntStateOf(0)
+
+    private val requestWatchNextAccess =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.refresh() }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (checkSelfPermission(WatchNextRepository.PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+            requestWatchNextAccess.launch(WatchNextRepository.PERMISSION)
+        }
+        setContent {
+            val state by viewModel.state.collectAsStateWithLifecycle()
+            TvHomeTheme {
+                // The home screen is the bottom of the stack; Back has nowhere to go.
+                BackHandler {}
+                HomeScreen(
+                    state = state,
+                    homePresses = homePresses,
+                    onLaunch = ::launch,
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onMoveFavorite = viewModel::moveFavorite,
+                    onAppInfo = { packageName ->
+                        launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+                    },
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refresh()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        homePresses++
+    }
+
+    private fun launch(intent: Intent) {
+        try {
+            startActivity(Intent(intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "Can't open that", Toast.LENGTH_SHORT).show()
+        } catch (e: SecurityException) {
+            Toast.makeText(this, "Can't open that", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
