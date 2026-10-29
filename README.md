@@ -89,6 +89,10 @@ Without a key those tiles show the app's banner instead.
 Prime Video reports only a content ID, not a title; TV Home looks that up on primevideo.com
 (no key needed). Netflix reports nothing about what's playing, so it never appears in the row.
 
+Music apps share a single tile showing the last song played. Audio of 20 minutes or longer
+(podcast episodes, audiobooks) gets its own tile like a video, since apps such as Spotify don't
+say which is which.
+
 ## Limits
 
 Continue watching only shows apps that publish to Android's Watch Next provider. Google TV's

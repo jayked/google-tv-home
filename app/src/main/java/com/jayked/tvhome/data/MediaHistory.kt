@@ -30,6 +30,8 @@ data class WatchedMedia(
     val positionMs: Long?,
     val durationMs: Long?,
     val watchedAt: Long,
+    /** A song: all music shares one place in the history, holding the last one played. */
+    val isMusic: Boolean = false,
 )
 
 /** What video apps reported playing through their media sessions, newest first. */
@@ -49,7 +51,7 @@ class MediaHistory(private val context: Context) {
         val previous = load()
         // Apps often send artwork in only some of their updates: keep what we already have.
         val merged = if (media.artwork != null) media else media.copy(artwork = previous.find { it.sameAs(media) }?.artwork)
-        val items = (listOf(merged) + previous.filterNot { it.sameAs(media) }).take(MAX_ITEMS)
+        val items = (listOf(merged) + previous.filterNot { it.sameAs(media) || (media.isMusic && it.isMusic) }).take(MAX_ITEMS)
         file.writeText(JSONArray(items.map { it.toJson() }).toString())
         // Drop artwork that no longer belongs to any remembered item.
         val kept = items.mapNotNull { it.artwork }.toSet()
@@ -89,6 +91,7 @@ class MediaHistory(private val context: Context) {
         .putOpt("position", positionMs)
         .putOpt("duration", durationMs)
         .put("watchedAt", watchedAt)
+        .put("music", isMusic)
 
     private fun JSONObject.toMedia() = WatchedMedia(
         packageName = getString("package"),
@@ -98,6 +101,7 @@ class MediaHistory(private val context: Context) {
         positionMs = if (has("position")) getLong("position") else null,
         durationMs = if (has("duration")) getLong("duration") else null,
         watchedAt = getLong("watchedAt"),
+        isMusic = optBoolean("music"),
     )
 
     companion object {
@@ -148,7 +152,7 @@ class MediaHistoryService : NotificationListenerService() {
         tracked.keys.filter { it !in activeTokens }.forEach { token ->
             tracked.remove(token)?.let { (controller, callback) -> controller.unregisterCallback(callback) }
         }
-        active.filter { it.sessionToken !in tracked && isVideoApp(it.packageName) }.forEach { controller ->
+        active.filter { it.sessionToken !in tracked && it.packageName != packageName && it.packageName !in IGNORED_APPS }.forEach { controller ->
             val callback = object : MediaController.Callback() {
                 override fun onMetadataChanged(metadata: MediaMetadata?) = record(controller)
                 override fun onPlaybackStateChanged(state: PlaybackState?) = record(controller)
@@ -179,7 +183,7 @@ class MediaHistoryService : NotificationListenerService() {
             positionMs = state.position.takeIf { it > 0 },
             durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 },
             watchedAt = System.currentTimeMillis(),
-        )
+        ).let { it.copy(isMusic = isMusic(controller.packageName, it.durationMs)) }
         // Real artwork first; the display icon can be just the app's logo (Spotify).
         val art = listOf(MediaMetadata.METADATA_KEY_ART, MediaMetadata.METADATA_KEY_ALBUM_ART)
             .mapNotNull(metadata::getBitmap)
@@ -211,22 +215,32 @@ class MediaHistoryService : NotificationListenerService() {
         return null
     }
 
-    private fun isVideoApp(packageName: String): Boolean {
-        if (packageName == this.packageName || packageName in MUSIC_APPS) return false
+    /**
+     * Songs from audio apps. Apps don't say whether audio is a song or a podcast episode (Spotify
+     * plays both), so long audio counts as an episode and gets its own place, like a video.
+     */
+    private fun isMusic(packageName: String, durationMs: Long?): Boolean {
+        if (durationMs != null && durationMs >= EPISODE_MIN_MS) return false
+        if (packageName in AUDIO_APPS) return true
         val info = runCatching { packageManager.getApplicationInfo(packageName, 0) }.getOrNull() ?: return false
-        return info.category != ApplicationInfo.CATEGORY_AUDIO
+        return info.category == ApplicationInfo.CATEGORY_AUDIO
     }
 
     private fun MediaMetadata.text(key: String) = getString(key)?.ifBlank { null }
 
     private companion object {
+        // Phone audio over Bluetooth: not something to resume from the TV.
+        val IGNORED_APPS = setOf("com.google.android.bluetooth")
+
         // Music apps that don't declare android:appCategory="audio".
-        val MUSIC_APPS = setOf(
+        val AUDIO_APPS = setOf(
+            "com.spotify.tv.android",
             "com.google.android.youtube.tvmusic",
             "com.amazon.music.tv",
             "deezer.android.tv",
             "com.aspiro.tidal",
-            "com.google.android.bluetooth",
         )
+
+        const val EPISODE_MIN_MS = 20 * 60_000L
     }
 }
