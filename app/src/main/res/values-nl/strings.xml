@@ -12,7 +12,6 @@
     <string name="menu_move">Verplaatsen</string>
     <string name="menu_app_info">App-info</string>
 
-    <string name="settings_network">Netwerk en internet</string>
     <string name="settings_display">Scherm en geluid</string>
     <string name="settings_remotes">Afstandsbedieningen en accessoires</string>
     <string name="settings_apps">Apps</string>

@@ -11,7 +11,6 @@ import androidx.compose.material.icons.automirrored.filled.Input
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.jayked.tvhome.R
 
@@ -29,7 +28,6 @@ fun loadShortcuts(context: Context): List<Shortcut> {
             )
         }
     val settings = listOf(
-        Shortcut(context.getString(R.string.settings_network), Icons.Default.Wifi, Intent(Settings.ACTION_WIFI_SETTINGS)),
         Shortcut(context.getString(R.string.settings_display), Icons.Default.Tv, Intent(Settings.ACTION_DISPLAY_SETTINGS)),
         Shortcut(context.getString(R.string.settings_remotes), Icons.Default.SettingsRemote, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)),
         Shortcut(context.getString(R.string.settings_apps), Icons.Default.Apps, Intent(Settings.ACTION_APPLICATION_SETTINGS)),
