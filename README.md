@@ -60,7 +60,7 @@ tvhome.weather.place=Amsterdam
 
 ## Wallpaper
 
-The background shows a new [Unsplash](https://unsplash.com) photo every minute. Create a free
+The background shows a new [Unsplash](https://unsplash.com) photo every 5 minutes. Create a free
 app at <https://unsplash.com/oauth/applications> and put its access key in `local.properties`
 (not committed), then reinstall:
 
@@ -70,6 +70,9 @@ unsplash.access_key=YOUR_ACCESS_KEY
 
 Change the search phrase (default "landscape") from the wallpaper icon in the top-right menu.
 Without a key the background stays plain dark.
+
+A new demo app is limited to 50 API requests an hour. TV Home stays well under that (one request
+per photo shown, plus one per batch of 30), and keeps the last photo up when Unsplash can't be reached.
 
 ## Limits
 

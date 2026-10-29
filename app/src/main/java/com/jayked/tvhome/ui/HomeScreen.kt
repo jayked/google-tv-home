@@ -103,10 +103,10 @@ private const val AppColumns = 5
 private val ScrollOnlyWhenNeeded = object : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         val trailing = offset + size
-        // Leave room for the focused tile's scale-up and border when scrolling to it.
-        val margin = containerSize * 0.06f
+        // Keep the focused tile clear of the screen edges, with room for its scale-up and border.
+        val margin = containerSize * 0.12f
         return when {
-            offset >= 0 && trailing <= containerSize -> 0f
+            offset >= margin && trailing <= containerSize - margin -> 0f
             offset < 0 || size > containerSize -> offset - margin
             else -> trailing - containerSize + margin
         }

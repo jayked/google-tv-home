@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import com.jayked.tvhome.BuildConfig
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.URLEncoder
 
 data class Photo(val id: String, val imageUrl: String, val photographer: String, val downloadLocation: String)
@@ -36,7 +37,8 @@ object Unsplash {
     private val headers
         get() = mapOf("Authorization" to "Client-ID ${BuildConfig.UNSPLASH_ACCESS_KEY}", "Accept-Version" to "v1")
 
-    // One request covers half an hour of wallpapers, well under the 50 requests/hour demo limit.
+    // One request covers hours of wallpapers; with download tracking that stays well under the
+    // 50 requests/hour demo limit.
     private const val BATCH_SIZE = 30
 }
 
@@ -47,8 +49,41 @@ class WallpaperSettings(context: Context) {
         get() = prefs.getString(KEY_QUERY, null) ?: DEFAULT_QUERY
         set(value) = prefs.edit { putString(KEY_QUERY, value) }
 
+    /** The photo on screen, shown again right away after a restart. */
+    var current: Photo?
+        get() = prefs.getString(KEY_CURRENT, null)?.let { runCatching { JSONObject(it).toPhoto() }.getOrNull() }
+        set(value) = prefs.edit { putString(KEY_CURRENT, value?.toJson()?.toString()) }
+
+    /** Fetched photos not shown yet, so a restart doesn't spend an API request on a new batch. */
+    fun queue(query: String): List<Photo> {
+        if (prefs.getString(KEY_QUEUE_QUERY, null) != query) return emptyList()
+        val json = runCatching { JSONArray(prefs.getString(KEY_QUEUE, null)) }.getOrNull() ?: return emptyList()
+        return (0 until json.length()).mapNotNull { runCatching { json.getJSONObject(it).toPhoto() }.getOrNull() }
+    }
+
+    fun saveQueue(query: String, photos: Collection<Photo>) = prefs.edit {
+        putString(KEY_QUEUE_QUERY, query)
+        putString(KEY_QUEUE, JSONArray(photos.map { it.toJson() }).toString())
+    }
+
+    private fun Photo.toJson() = JSONObject()
+        .put("id", id)
+        .put("imageUrl", imageUrl)
+        .put("photographer", photographer)
+        .put("downloadLocation", downloadLocation)
+
+    private fun JSONObject.toPhoto() = Photo(
+        id = getString("id"),
+        imageUrl = getString("imageUrl"),
+        photographer = getString("photographer"),
+        downloadLocation = getString("downloadLocation"),
+    )
+
     companion object {
         const val DEFAULT_QUERY = "landscape"
         private const val KEY_QUERY = "wallpaper_query"
+        private const val KEY_CURRENT = "wallpaper_current"
+        private const val KEY_QUEUE = "wallpaper_queue"
+        private const val KEY_QUEUE_QUERY = "wallpaper_queue_query"
     }
 }

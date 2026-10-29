@@ -68,17 +68,26 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val trimmed = query.trim().ifEmpty { WallpaperSettings.DEFAULT_QUERY }
         wallpaperSettings.query = trimmed
         _state.update { it.copy(wallpaperQuery = trimmed) }
-        startWallpaper()
+        startWallpaper(keepCurrent = false)
     }
 
-    /** Shows a new Unsplash photo every minute while the home screen is visible. */
-    private fun startWallpaper() {
+    /**
+     * Shows a new Unsplash photo every few minutes while the home screen is visible. With [keepCurrent]
+     * the last photo (from before a restart) stays up for a full interval first. If Unsplash can't be
+     * reached, the current photo simply stays.
+     */
+    private fun startWallpaper(keepCurrent: Boolean = true) {
         if (!Unsplash.isConfigured) return
         wallpaperJob?.cancel()
         wallpaperJob = viewModelScope.launch {
             val app = getApplication<Application>()
             val query = _state.value.wallpaperQuery
-            val queue = ArrayDeque<Photo>()
+            val queue = ArrayDeque(withContext(Dispatchers.IO) { wallpaperSettings.queue(query) })
+            val saved = if (keepCurrent) withContext(Dispatchers.IO) { wallpaperSettings.current } else null
+            if (saved != null) {
+                if (_state.value.wallpaper == null) _state.update { it.copy(wallpaper = saved) }
+                delay(WALLPAPER_INTERVAL_MS)
+            }
             while (true) {
                 visible.first { it }
                 if (queue.isEmpty()) {
@@ -90,11 +99,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     queue.addAll(photos)
                 }
                 val photo = queue.removeFirst()
+                withContext(Dispatchers.IO) { wallpaperSettings.saveQueue(query, queue) }
                 // Load the photo fully before showing it, so the crossfade never fades to an empty frame.
                 val request = ImageRequest.Builder(app).data(photo.imageUrl).build()
                 if (app.imageLoader.execute(request) !is SuccessResult) continue
                 _state.update { it.copy(wallpaper = photo) }
-                withContext(Dispatchers.IO) { runCatching { Unsplash.trackDownload(photo) } }
+                withContext(Dispatchers.IO) {
+                    wallpaperSettings.current = photo
+                    runCatching { Unsplash.trackDownload(photo) }
+                }
                 delay(WALLPAPER_INTERVAL_MS)
             }
         }
@@ -160,7 +173,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         const val WEATHER_INTERVAL_MS = 30 * 60_000L
         const val WEATHER_RETRY_MS = 2 * 60_000L
         const val CONTINUE_WATCHING_LIMIT = 5
-        const val WALLPAPER_INTERVAL_MS = 60_000L
+        const val WALLPAPER_INTERVAL_MS = 5 * 60_000L
         const val WALLPAPER_RETRY_MS = 5 * 60_000L
     }
 }
