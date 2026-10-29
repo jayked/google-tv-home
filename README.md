@@ -34,8 +34,8 @@ This builds, installs and opens the app. On first launch it may ask for access t
 ## Make it the home screen
 
 Chromecast with Google TV can't switch launchers, and disabling the stock one leaves Home
-broken. Instead, TV Home's accessibility service catches the Home button and opens TV Home,
-and also takes over whenever the Google TV home screen appears (e.g. after Back out of an app):
+broken. Instead, TV Home's accessibility service watches for Google TV's home screen and opens
+TV Home over it, so Home and Back out of an app land on TV Home (after a brief flash of Google TV):
 
 ```sh
 scripts/takeover.sh on      # Home button opens TV Home
@@ -43,8 +43,9 @@ scripts/takeover.sh off     # Home button opens Google TV again
 scripts/takeover.sh status
 ```
 
-Long-pressing Home no longer opens Google TV's side panel; use the settings icons in TV Home's
-top-right menu instead.
+The **Google TV** tile below the apps opens Google TV's own home without being redirected.
+From there, opening any app and pressing Home or Back returns to TV Home; pressing Home while on
+Google TV's home itself does nothing (the system handles Home before accessibility services see it).
 
 ## Weather location
 

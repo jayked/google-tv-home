@@ -129,6 +129,7 @@ fun HomeScreen(
     onMoveFavorite: (String, Int) -> Unit,
     onMoveApp: (String, Int) -> Unit,
     onSetWallpaperQuery: (String) -> Unit,
+    onOpenStockHome: (Intent) -> Unit,
     onAppInfo: (String) -> Unit,
 ) {
     var showWallpaperSettings by remember { mutableStateOf(false) }
@@ -276,6 +277,17 @@ fun HomeScreen(
                                     }
                                     // Keep the last row's cards the same width as the rows above.
                                     repeat(AppColumns - row.size) { Spacer(Modifier.weight(1f)) }
+                                }
+                            }
+                            state.stockHome?.let { stockHome ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(CardSpacing)) {
+                                    AppCard(
+                                        app = stockHome,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { onOpenStockHome(stockHome.intent) },
+                                        onLongClick = {},
+                                    )
+                                    repeat(AppColumns - 1) { Spacer(Modifier.weight(1f)) }
                                 }
                             }
                         }

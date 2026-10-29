@@ -37,4 +37,5 @@
     <string name="unsplash_missing_key">Add an Unsplash access key to local.properties to show photos.</string>
 
     <string name="home_button_service_description">Opens TV Home when you press the Home button.</string>
+    <string name="stock_home">Google TV</string>
 </resources>

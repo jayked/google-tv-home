@@ -55,11 +55,11 @@ fun AppCard(
             Image(app.banner, contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
             Column(
-                modifier = Modifier.fillMaxSize().padding(10.dp),
+                modifier = Modifier.fillMaxSize().padding(8.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Image(app.icon, contentDescription = null, modifier = Modifier.size(52.dp))
+                Image(app.icon, contentDescription = null, modifier = Modifier.size(40.dp))
                 Text(
                     text = app.label,
                     style = MaterialTheme.typography.labelLarge,

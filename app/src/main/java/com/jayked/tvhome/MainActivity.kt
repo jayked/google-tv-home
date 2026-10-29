@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -51,6 +52,10 @@ class MainActivity : ComponentActivity() {
                     onMoveFavorite = viewModel::moveFavorite,
                     onMoveApp = viewModel::moveApp,
                     onSetWallpaperQuery = viewModel::setWallpaperQuery,
+                    onOpenStockHome = { intent ->
+                        HomeButtonService.stockHomeRequestedAt = SystemClock.elapsedRealtime()
+                        launch(intent)
+                    },
                     onAppInfo = { packageName ->
                         launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
                     },

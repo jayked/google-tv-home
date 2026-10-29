@@ -31,6 +31,7 @@ data class HomeState(
     val loaded: Boolean = false,
     val apps: List<AppEntry> = emptyList(),
     val favorites: List<AppEntry> = emptyList(),
+    val stockHome: AppEntry? = null,
     val watchNext: List<WatchNextItem> = emptyList(),
     val shortcuts: List<Shortcut> = emptyList(),
     val weather: Weather? = null,
@@ -104,6 +105,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val context = getApplication<Application>()
             val apps = withContext(Dispatchers.IO) { repository.loadApps() }
+            val stockHome = withContext(Dispatchers.IO) { repository.loadStockHome() }
             val watchNext = withContext(Dispatchers.IO) { ContinueWatching.load(context, CONTINUE_WATCHING_LIMIT) }
             val shortcuts = withContext(Dispatchers.IO) { loadShortcuts(context) }
             _state.update {
@@ -111,6 +113,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     loaded = true,
                     apps = apps,
                     favorites = favoritesOf(apps),
+                    stockHome = stockHome,
                     watchNext = watchNext,
                     shortcuts = shortcuts,
                 )
