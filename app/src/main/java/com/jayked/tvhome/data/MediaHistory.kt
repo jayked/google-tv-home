@@ -11,12 +11,16 @@ import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.NotificationListenerService
 import androidx.core.graphics.scale
+import java.io.File
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 data class WatchedMedia(
     val packageName: String,
@@ -119,6 +123,11 @@ class MediaHistoryService : NotificationListenerService() {
     private lateinit var sessionManager: MediaSessionManager
     private val tracked = mutableMapOf<MediaSession.Token, Pair<MediaController, MediaController.Callback>>()
     private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener { track(it.orEmpty()) }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val lookups = Executors.newSingleThreadExecutor()
+
+    /** Prime Video details by content ID; empty while the lookup runs, and after it failed (not retried). */
+    private val primeDetails = ConcurrentHashMap<String, Optional<PrimeVideo.Details>>()
 
     override fun onListenerConnected() {
         history = MediaHistory(this)
@@ -154,14 +163,16 @@ class MediaHistoryService : NotificationListenerService() {
         if (state.state != PlaybackState.STATE_PLAYING && state.state != PlaybackState.STATE_PAUSED) return
         // Without a title (Netflix reports none) there's nothing useful to show.
         val metadata = controller.metadata ?: return
-        val title = metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
+        val reportedTitle = metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
             ?: metadata.text(MediaMetadata.METADATA_KEY_TITLE)
-            ?: return
+        val prime = if (reportedTitle == null) primeDetails(controller, metadata) ?: return else null
+        val title = reportedTitle ?: prime?.title ?: return
         val media = WatchedMedia(
             packageName = controller.packageName,
             title = title,
             subtitle = metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
-                ?: metadata.text(MediaMetadata.METADATA_KEY_ARTIST),
+                ?: metadata.text(MediaMetadata.METADATA_KEY_ARTIST)
+                ?: prime?.subtitle,
             artwork = null,
             positionMs = state.position.takeIf { it > 0 },
             durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 },
@@ -173,8 +184,26 @@ class MediaHistoryService : NotificationListenerService() {
         val artwork = bitmap?.let { history.saveArtwork(media, it) }
             ?: metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
             ?: metadata.text(MediaMetadata.METADATA_KEY_ART_URI)
+            ?: prime?.image
         history.record(media.copy(artwork = artwork))
         controller.sessionActivity?.let { MediaHistory.sessionActivities[MediaHistory.key(media.packageName, title)] = it }
+    }
+
+    /**
+     * Prime Video's title, looked up once per content ID in the background; records the session
+     * again when it arrives. Null until then, or when the session isn't Prime Video's.
+     */
+    private fun primeDetails(controller: MediaController, metadata: MediaMetadata): PrimeVideo.Details? {
+        if (controller.packageName != PrimeVideo.PACKAGE) return null
+        val contentId = metadata.text(MediaMetadata.METADATA_KEY_MEDIA_ID)?.takeIf(PrimeVideo::isContentId) ?: return null
+        primeDetails[contentId]?.let { return it.orElse(null) }
+        primeDetails[contentId] = Optional.empty()
+        lookups.execute {
+            val details = runCatching { PrimeVideo.details(contentId) }.getOrNull() ?: return@execute
+            primeDetails[contentId] = Optional.of(details)
+            mainHandler.post { record(controller) }
+        }
+        return null
     }
 
     private fun isVideoApp(packageName: String): Boolean {

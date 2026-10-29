@@ -86,6 +86,9 @@ tmdb.api_key=YOUR_TMDB_KEY
 
 Without a key those tiles show the app's banner instead.
 
+Prime Video reports only a content ID, not a title; TV Home looks that up on primevideo.com
+(no key needed). Netflix reports nothing about what's playing, so it never appears in the row.
+
 ## Limits
 
 Continue watching only shows apps that publish to Android's Watch Next provider. Google TV's
