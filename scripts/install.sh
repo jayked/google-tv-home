@@ -10,6 +10,4 @@ TASK=assemble$(tr '[:lower:]' '[:upper:]' <<<"${VARIANT:0:1}")${VARIANT:1}
 
 ./gradlew ":app:$TASK"
 adb install -r "app/build/outputs/apk/$VARIANT/app-$VARIANT.apk"
-adb shell pm grant "$PKG" com.android.providers.tv.permission.READ_EPG_DATA \
-  || echo "Could not grant READ_EPG_DATA; the Continue watching row will stay empty."
 adb shell am start -n "$PKG/.MainActivity"

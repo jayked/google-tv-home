@@ -20,30 +20,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
-import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.jayked.tvhome.data.AppEntry
-import com.jayked.tvhome.data.Shortcut
 import com.jayked.tvhome.data.WatchNextItem
 
 private val focusBorder = Border(BorderStroke(3.dp, Color.White))
 
 @Composable
-fun AppCard(app: AppEntry, onClick: () -> Unit, onLongClick: () -> Unit, modifier: Modifier = Modifier) {
+fun AppCard(
+    app: AppEntry,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    moving: Boolean = false,
+) {
     Card(
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = modifier.width(208.dp).aspectRatio(16f / 9f),
-        border = CardDefaults.border(focusedBorder = focusBorder),
-        scale = CardDefaults.scale(focusedScale = 1.08f),
+        modifier = modifier.aspectRatio(16f / 9f),
+        border = CardDefaults.border(
+            focusedBorder = if (moving) Border(BorderStroke(4.dp, MaterialTheme.colorScheme.primary)) else focusBorder,
+        ),
+        scale = CardDefaults.scale(focusedScale = if (moving) 1.12f else 1.08f),
     ) {
         if (app.banner != null) {
             Image(app.banner, contentDescription = app.label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -104,31 +109,6 @@ fun WatchNextCard(item: WatchNextItem, onClick: () -> Unit) {
                     Box(Modifier.fillMaxHeight().fillMaxWidth(progress).background(MaterialTheme.colorScheme.primary))
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ShortcutCard(shortcut: Shortcut, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.width(208.dp).aspectRatio(16f / 9f),
-        border = CardDefaults.border(focusedBorder = focusBorder),
-        scale = CardDefaults.scale(focusedScale = 1.08f),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(shortcut.icon, contentDescription = null, modifier = Modifier.size(36.dp))
-            Text(
-                text = shortcut.label,
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                modifier = Modifier.padding(top = 8.dp),
-            )
         }
     }
 }

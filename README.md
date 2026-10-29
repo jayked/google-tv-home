@@ -5,9 +5,9 @@ Google TV-style layout without ads or recommendations:
 
 - Clock, date and current weather (Open-Meteo)
 - "Continue watching" hero and row, from the system Watch Next list
-- Favorites row (long-press any app to add, remove or reorder)
-- All installed apps
-- HDMI inputs (if the device has any) and settings shortcuts
+- Favorites row and a 5-column grid of all apps (long-press an app to favorite or move it)
+- Settings shortcuts (and HDMI inputs, if any) as icons in the top-right corner; press Up from
+  the top row to reveal them
 
 Built with Kotlin and Compose for TV. `minSdk` 29.
 
@@ -29,7 +29,7 @@ Built with Kotlin and Compose for TV. `minSdk` 29.
 scripts/install.sh release   # or no argument for a debug build
 ```
 
-This builds, installs, grants `READ_EPG_DATA` (required for Continue watching) and opens the app.
+This builds, installs and opens the app. On first launch it may ask for access to TV data; allow it so Continue watching works.
 
 ## Make it the home screen
 
@@ -48,7 +48,7 @@ back on before installing system updates if something misbehaves.
 
 ## Weather location
 
-By default the location comes from the TV's IP address (ipapi.co). To set it yourself,
+By default the location comes from the TV's IP address (ipwho.is). To set it yourself,
 fill these in `gradle.properties` and reinstall:
 
 ```properties

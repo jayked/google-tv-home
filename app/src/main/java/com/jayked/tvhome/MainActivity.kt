@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
                     onLaunch = ::launch,
                     onToggleFavorite = viewModel::toggleFavorite,
                     onMoveFavorite = viewModel::moveFavorite,
+                    onMoveApp = viewModel::moveApp,
                     onAppInfo = { packageName ->
                         launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
                     },
@@ -67,9 +68,9 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(Intent(intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, "Can't open that", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.cant_open, Toast.LENGTH_SHORT).show()
         } catch (e: SecurityException) {
-            Toast.makeText(this, "Can't open that", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.cant_open, Toast.LENGTH_SHORT).show()
         }
     }
 }

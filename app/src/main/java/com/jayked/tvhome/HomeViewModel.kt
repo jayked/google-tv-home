@@ -72,6 +72,26 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(favorites = favoritesOf(it.apps)) }
     }
 
+    /**
+     * Moves an app in the Apps grid by [delta] positions (±1 sideways, ±columns vertically).
+     * Moves past either end are ignored, except moving down into a shorter last row.
+     */
+    fun moveApp(packageName: String, delta: Int) {
+        val apps = _state.value.apps.toMutableList()
+        val from = apps.indexOfFirst { it.packageName == packageName }
+        if (from < 0) return
+        var to = from + delta
+        if (to < 0) return
+        if (to > apps.lastIndex) {
+            val rowBelowExists = delta > 1 && from / delta < apps.lastIndex / delta
+            if (!rowBelowExists) return
+            to = apps.lastIndex
+        }
+        apps.add(to, apps.removeAt(from))
+        repository.saveAppOrder(apps.map { it.packageName })
+        _state.update { it.copy(apps = apps) }
+    }
+
     private fun favoritesOf(apps: List<AppEntry>): List<AppEntry> {
         val byPackage = apps.associateBy { it.packageName }
         return repository.favorites().mapNotNull(byPackage::get)

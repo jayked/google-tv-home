@@ -38,16 +38,21 @@ class AppRepository(private val context: Context) {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED),
                 )
             }
-            .sortedBy { it.label.lowercase() }
+            .let { apps ->
+                // Apps the user has arranged come first in their order; new installs go at the end.
+                val position = packageList(KEY_APP_ORDER).withIndex().associate { (i, pkg) -> pkg to i }
+                apps.sortedWith(compareBy({ position[it.packageName] ?: Int.MAX_VALUE }, { it.label.lowercase() }))
+            }
     }
 
-    fun favorites(): List<String> =
-        prefs.getString(KEY_FAVORITES, null)?.split(',')?.filter { it.isNotBlank() }.orEmpty()
+    fun saveAppOrder(packageNames: List<String>) = savePackageList(KEY_APP_ORDER, packageNames)
+
+    fun favorites(): List<String> = packageList(KEY_FAVORITES)
 
     fun toggleFavorite(packageName: String) {
         val favorites = favorites().toMutableList()
         if (!favorites.remove(packageName)) favorites.add(packageName)
-        save(favorites)
+        savePackageList(KEY_FAVORITES, favorites)
     }
 
     fun moveFavorite(packageName: String, delta: Int) {
@@ -56,13 +61,17 @@ class AppRepository(private val context: Context) {
         if (from < 0) return
         favorites.removeAt(from)
         favorites.add((from + delta).coerceIn(0, favorites.size), packageName)
-        save(favorites)
+        savePackageList(KEY_FAVORITES, favorites)
     }
 
-    private fun save(favorites: List<String>) =
-        prefs.edit { putString(KEY_FAVORITES, favorites.joinToString(",")) }
+    private fun packageList(key: String): List<String> =
+        prefs.getString(key, null)?.split(',')?.filter { it.isNotBlank() }.orEmpty()
+
+    private fun savePackageList(key: String, packageNames: List<String>) =
+        prefs.edit { putString(key, packageNames.joinToString(",")) }
 
     private companion object {
         const val KEY_FAVORITES = "favorites"
+        const val KEY_APP_ORDER = "app_order"
     }
 }

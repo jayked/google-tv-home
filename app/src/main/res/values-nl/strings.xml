@@ -1,0 +1,29 @@
+<resources>
+    <string name="continue_watching">Verder kijken</string>
+    <string name="resume">Hervatten</string>
+    <string name="favorites">Favorieten</string>
+    <string name="apps">Apps</string>
+    <string name="move_hint_row">◀ ▶ om te verplaatsen · OK om te voltooien</string>
+    <string name="move_hint_grid">◀ ▶ ▲ ▼ om te verplaatsen · OK om te voltooien</string>
+    <string name="cant_open">Kan dit niet openen</string>
+
+    <string name="menu_add_favorite">Toevoegen aan favorieten</string>
+    <string name="menu_remove_favorite">Verwijderen uit favorieten</string>
+    <string name="menu_move">Verplaatsen</string>
+    <string name="menu_app_info">App-info</string>
+
+    <string name="settings_network">Netwerk en internet</string>
+    <string name="settings_display">Scherm en geluid</string>
+    <string name="settings_remotes">Afstandsbedieningen en accessoires</string>
+    <string name="settings_apps">Apps</string>
+    <string name="settings">Instellingen</string>
+
+    <string name="weather_clear">Helder</string>
+    <string name="weather_partly_cloudy">Half bewolkt</string>
+    <string name="weather_cloudy">Bewolkt</string>
+    <string name="weather_fog">Mist</string>
+    <string name="weather_drizzle">Motregen</string>
+    <string name="weather_rain">Regen</string>
+    <string name="weather_snow">Sneeuw</string>
+    <string name="weather_thunderstorm">Onweer</string>
+</resources>

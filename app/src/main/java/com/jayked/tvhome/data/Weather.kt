@@ -1,13 +1,15 @@
 package com.jayked.tvhome.data
 
+import androidx.annotation.StringRes
 import com.jayked.tvhome.BuildConfig
+import com.jayked.tvhome.R
+import kotlin.math.roundToInt
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
-import kotlin.math.roundToInt
 
-data class Weather(val temperature: Int, val unit: String, val description: String, val place: String?)
+data class Weather(val temperature: Int, val unit: String, @StringRes val description: Int?, val place: String?)
 
 /** Current conditions from Open-Meteo (no API key needed). Blocking; call off the main thread. */
 object WeatherClient {
@@ -30,7 +32,8 @@ object WeatherClient {
         val lat = BuildConfig.WEATHER_LAT.toDoubleOrNull()
         val lon = BuildConfig.WEATHER_LON.toDoubleOrNull()
         if (lat != null && lon != null) return Triple(lat, lon, BuildConfig.WEATHER_PLACE.ifBlank { null })
-        val ip = JSONObject(get("https://ipapi.co/json/"))
+        val ip = JSONObject(get("https://ipwho.is/"))
+        check(ip.optBoolean("success")) { ip.optString("message") }
         return Triple(ip.getDouble("latitude"), ip.getDouble("longitude"), ip.optString("city").ifBlank { null })
     }
 
@@ -47,15 +50,15 @@ object WeatherClient {
 
     // WMO weather interpretation codes.
     private fun describe(code: Int) = when (code) {
-        0 -> "Clear"
-        1, 2 -> "Partly cloudy"
-        3 -> "Cloudy"
-        45, 48 -> "Fog"
-        in 51..57 -> "Drizzle"
-        in 61..67, in 80..82 -> "Rain"
-        in 71..77, 85, 86 -> "Snow"
-        in 95..99 -> "Thunderstorm"
-        else -> ""
+        0 -> R.string.weather_clear
+        1, 2 -> R.string.weather_partly_cloudy
+        3 -> R.string.weather_cloudy
+        45, 48 -> R.string.weather_fog
+        in 51..57 -> R.string.weather_drizzle
+        in 61..67, in 80..82 -> R.string.weather_rain
+        in 71..77, 85, 86 -> R.string.weather_snow
+        in 95..99 -> R.string.weather_thunderstorm
+        else -> null
     }
 
     private val FAHRENHEIT_COUNTRIES = setOf("US", "LR", "MM")
