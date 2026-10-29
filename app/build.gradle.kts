@@ -6,12 +6,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-fun prop(name: String) = (project.findProperty(name) as String?).orEmpty()
-
-// Secrets live in local.properties, which is not committed.
+// Secrets and per-device settings live in local.properties, which is not committed.
 val localProperties = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
+
+/** A setting from local.properties, falling back to gradle.properties. */
+fun prop(name: String) =
+    localProperties.getProperty(name)?.ifBlank { null } ?: (project.findProperty(name) as String?).orEmpty()
 
 android {
     namespace = "com.jayked.tvhome"
@@ -27,7 +29,7 @@ android {
         buildConfigField("String", "WEATHER_LAT", "\"${prop("tvhome.weather.lat")}\"")
         buildConfigField("String", "WEATHER_LON", "\"${prop("tvhome.weather.lon")}\"")
         buildConfigField("String", "WEATHER_PLACE", "\"${prop("tvhome.weather.place")}\"")
-        buildConfigField("String", "UNSPLASH_ACCESS_KEY", "\"${localProperties.getProperty("unsplash.access_key").orEmpty()}\"")
+        buildConfigField("String", "UNSPLASH_ACCESS_KEY", "\"${prop("unsplash.access_key")}\"")
     }
 
     buildTypes {
