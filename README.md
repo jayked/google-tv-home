@@ -74,6 +74,18 @@ Without a key the background stays plain dark.
 A new demo app is limited to 50 API requests an hour. TV Home stays well under that (one request
 per photo shown, plus one per batch of 30), and keeps the last photo up when Unsplash can't be reached.
 
+## Artwork for Continue watching
+
+Some apps, like Disney+, report only a title while playing. TV Home then looks the title up on
+[TMDB](https://www.themoviedb.org) for a backdrop. Create a free account, request an API key under
+Settings → API, and add either the API key or the read access token to `local.properties`:
+
+```properties
+tmdb.api_key=YOUR_TMDB_KEY
+```
+
+Without a key those tiles show the app's banner instead.
+
 ## Limits
 
 Continue watching only shows apps that publish to Android's Watch Next provider. Google TV's

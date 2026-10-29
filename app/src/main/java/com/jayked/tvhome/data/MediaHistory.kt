@@ -42,11 +42,20 @@ class MediaHistory(private val context: Context) {
     }
 
     fun record(media: WatchedMedia) = synchronized(lock) {
-        val items = (listOf(media) + load().filterNot { it.sameAs(media) }).take(MAX_ITEMS)
+        val previous = load()
+        // Apps often send artwork in only some of their updates: keep what we already have.
+        val merged = if (media.artwork != null) media else media.copy(artwork = previous.find { it.sameAs(media) }?.artwork)
+        val items = (listOf(merged) + previous.filterNot { it.sameAs(media) }).take(MAX_ITEMS)
         file.writeText(JSONArray(items.map { it.toJson() }).toString())
         // Drop artwork that no longer belongs to any remembered item.
         val kept = items.mapNotNull { it.artwork }.toSet()
         artworkDir.listFiles()?.filter { Uri.fromFile(it).toString() !in kept }?.forEach { it.delete() }
+    }
+
+    /** Fills in artwork found elsewhere, without changing the item's place in the history. */
+    fun setArtwork(media: WatchedMedia, artwork: String) = synchronized(lock) {
+        val items = load().map { if (it.sameAs(media) && it.artwork == null) it.copy(artwork = artwork) else it }
+        file.writeText(JSONArray(items.map { it.toJson() }).toString())
     }
 
     /** Stores a session's artwork bitmap, since apps' own artwork URIs are often unreadable to us. */
@@ -143,6 +152,7 @@ class MediaHistoryService : NotificationListenerService() {
     private fun record(controller: MediaController) {
         val state = controller.playbackState ?: return
         if (state.state != PlaybackState.STATE_PLAYING && state.state != PlaybackState.STATE_PAUSED) return
+        // Without a title (Netflix reports none) there's nothing useful to show.
         val metadata = controller.metadata ?: return
         val title = metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
             ?: metadata.text(MediaMetadata.METADATA_KEY_TITLE)

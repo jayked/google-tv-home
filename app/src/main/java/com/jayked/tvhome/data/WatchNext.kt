@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.tv.TvContract.WatchNextPrograms
+import java.util.concurrent.ConcurrentHashMap
 
 data class WatchNextItem(
     val id: String,
@@ -26,9 +27,21 @@ data class WatchNextItem(
  * one, otherwise by opening the app (which usually returns to where playback stopped).
  */
 object ContinueWatching {
+    /** Titles already looked up on TMDB this run, so misses aren't retried on every refresh. */
+    private val lookedUp = ConcurrentHashMap.newKeySet<String>()
+
+    /** Some apps (Disney+) report no artwork at all: find it on TMDB by title instead. */
+    private fun WatchedMedia.withLookedUpArtwork(history: MediaHistory): WatchedMedia {
+        if (artwork != null || !Tmdb.isConfigured || !lookedUp.add(title.lowercase())) return this
+        val found = runCatching { Tmdb.backdrop(title) }.getOrNull() ?: return this
+        history.setArtwork(this, found)
+        return copy(artwork = found)
+    }
+
     fun load(context: Context, limit: Int): List<WatchNextItem> {
         val pm = context.packageManager
-        val fromSessions = MediaHistory(context).load().mapNotNull { media ->
+        val history = MediaHistory(context)
+        val fromSessions = history.load().take(limit).map { media -> media.withLookedUpArtwork(history) }.mapNotNull { media ->
             // Not FLAG_ACTIVITY_RESET_TASK_IF_NEEDED: bring the app's task back as it was left.
             val intent = pm.getLeanbackLaunchIntentForPackage(media.packageName)
                 ?: pm.getLaunchIntentForPackage(media.packageName)

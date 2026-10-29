@@ -30,6 +30,7 @@ android {
         buildConfigField("String", "WEATHER_LON", "\"${prop("tvhome.weather.lon")}\"")
         buildConfigField("String", "WEATHER_PLACE", "\"${prop("tvhome.weather.place")}\"")
         buildConfigField("String", "UNSPLASH_ACCESS_KEY", "\"${prop("unsplash.access_key")}\"")
+        buildConfigField("String", "TMDB_API_KEY", "\"${prop("tmdb.api_key")}\"")
     }
 
     buildTypes {
