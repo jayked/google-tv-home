@@ -35,7 +35,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -125,6 +124,7 @@ fun HomeScreen(
     state: HomeState,
     homePresses: Int,
     onLaunch: (Intent) -> Unit,
+    onContinueWatching: (WatchNextItem) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onMoveFavorite: (String, Int) -> Unit,
     onMoveApp: (String, Int) -> Unit,
@@ -171,7 +171,7 @@ fun HomeScreen(
         runCatching { initialFocus.requestFocus() }
     }
 
-    val hero = state.watchNext.firstOrNull()
+    val hasContinueWatching = state.watchNext.isNotEmpty()
     CompositionLocalProvider(LocalBringIntoViewSpec provides ScrollOnlyWhenNeeded) {
         Box(
             Modifier
@@ -204,14 +204,26 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(32.dp),
             ) {
                 item { TopBar(state.weather, menuEntries) }
-                if (hero != null) {
-                    item { Hero(hero, Modifier.focusRequester(initialFocus).then(revealTopBar)) { onLaunch(hero.intent) } }
-                }
-                if (state.watchNext.isNotEmpty()) {
+                if (hasContinueWatching) {
                     item {
-                        Section(stringResource(R.string.continue_watching)) {
-                            items(state.watchNext, key = { it.id }) { item ->
-                                WatchNextCard(item) { onLaunch(item.intent) }
+                        Column {
+                            SectionTitle(stringResource(R.string.continue_watching))
+                            Row(
+                                modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(CardSpacing),
+                            ) {
+                                state.watchNext.forEachIndexed { index, item ->
+                                    WatchNextCard(
+                                        item = item,
+                                        app = state.apps.find { it.packageName == item.packageName },
+                                        onClick = { onContinueWatching(item) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .then(if (index == 0) Modifier.focusRequester(initialFocus) else Modifier)
+                                            .then(revealTopBar),
+                                    )
+                                }
+                                repeat(AppColumns - state.watchNext.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
                     }
@@ -220,7 +232,7 @@ fun HomeScreen(
                     item {
                         Section(stringResource(R.string.favorites), hint = if (moving?.inFavorites == true) stringResource(R.string.move_hint_row) else null) {
                             items(state.favorites, key = { it.packageName }) { app ->
-                                val first = hero == null && app == state.favorites.first()
+                                val first = !hasContinueWatching && app == state.favorites.first()
                                 val isMoving = moving.matches(app, inFavorites = true)
                                 AppCard(
                                     app = app,
@@ -229,7 +241,7 @@ fun HomeScreen(
                                         .width(208.dp)
                                         .then(if (first) Modifier.focusRequester(initialFocus) else Modifier)
                                         .then(if (focusTarget.matches(app, inFavorites = true)) Modifier.focusRequester(targetFocus) else Modifier)
-                                        .then(if (hero == null) revealTopBar else Modifier),
+                                        .then(if (!hasContinueWatching) revealTopBar else Modifier),
                                     onClick = { onLaunch(app.intent) },
                                     onLongClick = { menuTarget = AppTarget(app, inFavorites = true) },
                                 )
@@ -245,10 +257,10 @@ fun HomeScreen(
                             verticalArrangement = Arrangement.spacedBy(CardSpacing),
                         ) {
                             state.apps.chunked(AppColumns).forEachIndexed { rowIndex, row ->
-                                val topRow = rowIndex == 0 && hero == null && state.favorites.isEmpty()
+                                val topRow = rowIndex == 0 && !hasContinueWatching && state.favorites.isEmpty()
                                 Row(horizontalArrangement = Arrangement.spacedBy(CardSpacing)) {
                                     row.forEach { app ->
-                                        val first = hero == null && state.favorites.isEmpty() && app == state.apps.first()
+                                        val first = !hasContinueWatching && state.favorites.isEmpty() && app == state.apps.first()
                                         val isMoving = moving.matches(app, inFavorites = false)
                                         AppCard(
                                             app = app,
@@ -344,8 +356,11 @@ private fun PhotoCredit(photo: Photo, modifier: Modifier = Modifier) {
     Text(
         text = stringResource(R.string.photo_credit, photo.photographer),
         style = MaterialTheme.typography.labelSmall,
-        color = Color.White.copy(alpha = 0.7f),
-        modifier = modifier.padding(end = Gutter, bottom = 12.dp),
+        color = Color.White.copy(alpha = 0.8f),
+        modifier = modifier
+            .padding(end = Gutter, bottom = 12.dp)
+            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }
 
@@ -467,50 +482,6 @@ private fun Clock() {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun Hero(item: WatchNextItem, buttonModifier: Modifier, onResume: () -> Unit) {
-    Box(
-        Modifier
-            .padding(horizontal = Gutter)
-            .fillMaxWidth()
-            .height(320.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surface),
-    ) {
-        AsyncImage(
-            model = item.image,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.9f), 0.7f to Color.Transparent)),
-        )
-        Column(
-            modifier = Modifier.align(Alignment.CenterStart).padding(40.dp).fillMaxWidth(0.5f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(stringResource(R.string.continue_watching), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            item.subtitle?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.8f)) }
-            Spacer(Modifier.height(8.dp))
-            Button(onClick = onResume, modifier = buttonModifier) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.resume))
-            }
-        }
     }
 }
 

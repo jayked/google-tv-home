@@ -1,20 +1,59 @@
 package com.jayked.tvhome.data
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.tv.TvContract.WatchNextPrograms
-import android.net.Uri
 
 data class WatchNextItem(
-    val id: Long,
+    val id: String,
+    val packageName: String?,
     val title: String,
     val subtitle: String?,
-    val image: Uri?,
+    val image: String?,
     val progress: Float?,
     val intent: Intent,
+    val lastWatched: Long,
+    /** Reopens the app's player directly; set while the app's media session is still around. */
+    val sessionActivity: PendingIntent? = null,
 )
+
+/**
+ * The most recently watched titles: what apps published to Watch Next, plus what the media
+ * session listener saw playing. Opening one resumes it through the app's deep link when it gave
+ * one, otherwise by opening the app (which usually returns to where playback stopped).
+ */
+object ContinueWatching {
+    fun load(context: Context, limit: Int): List<WatchNextItem> {
+        val pm = context.packageManager
+        val fromSessions = MediaHistory(context).load().mapNotNull { media ->
+            // Not FLAG_ACTIVITY_RESET_TASK_IF_NEEDED: bring the app's task back as it was left.
+            val intent = pm.getLeanbackLaunchIntentForPackage(media.packageName)
+                ?: pm.getLaunchIntentForPackage(media.packageName)
+                ?: return@mapNotNull null
+            WatchNextItem(
+                id = "session:${media.packageName}:${media.title}",
+                packageName = media.packageName,
+                title = media.title,
+                subtitle = media.subtitle,
+                image = media.artwork,
+                progress = progress(media.positionMs, media.durationMs),
+                intent = intent,
+                lastWatched = media.watchedAt,
+                sessionActivity = MediaHistory.sessionActivities[MediaHistory.key(media.packageName, media.title)],
+            )
+        }
+        return (WatchNextRepository.load(context) + fromSessions)
+            .sortedByDescending { it.lastWatched }
+            .distinctBy { it.packageName to it.title.lowercase() }
+            .take(limit)
+    }
+}
+
+private fun progress(position: Long?, duration: Long?) =
+    if (position != null && duration != null && duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else null
 
 /**
  * Reads the system "Watch Next" list that apps publish to the TV provider. Google TV's own
@@ -58,22 +97,18 @@ object WatchNextRepository {
             .joinToString(" · ")
             .ifBlank { null }
 
-        val position = long(WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS)
-        val duration = long(WatchNextPrograms.COLUMN_DURATION_MILLIS)
-        val progress = if (position != null && duration != null && duration > 0) {
-            (position.toFloat() / duration).coerceIn(0f, 1f)
-        } else {
-            null
-        }
-
         return WatchNextItem(
-            id = long(WatchNextPrograms._ID) ?: return null,
+            id = "provider:${long(WatchNextPrograms._ID) ?: return null}",
+            packageName = string(WatchNextPrograms.COLUMN_PACKAGE_NAME),
             title = title,
             subtitle = subtitle,
-            image = (string(WatchNextPrograms.COLUMN_THUMBNAIL_URI)
-                ?: string(WatchNextPrograms.COLUMN_POSTER_ART_URI))?.let(Uri::parse),
-            progress = progress,
+            image = string(WatchNextPrograms.COLUMN_THUMBNAIL_URI) ?: string(WatchNextPrograms.COLUMN_POSTER_ART_URI),
+            progress = progress(
+                long(WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS),
+                long(WatchNextPrograms.COLUMN_DURATION_MILLIS),
+            ),
             intent = intent,
+            lastWatched = long(WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS) ?: 0L,
         )
     }
 

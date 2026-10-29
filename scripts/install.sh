@@ -10,4 +10,6 @@ TASK=assemble$(tr '[:lower:]' '[:upper:]' <<<"${VARIANT:0:1}")${VARIANT:1}
 
 ./gradlew ":app:$TASK"
 adb install -r "app/build/outputs/apk/$VARIANT/app-$VARIANT.apk"
+# Notification access lets the launcher see what apps are playing (Continue watching).
+adb shell cmd notification allow_listener "$PKG/$PKG.data.MediaHistoryService"
 adb shell am start -n "$PKG/.MainActivity"

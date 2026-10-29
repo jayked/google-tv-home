@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,10 +73,12 @@ fun AppCard(
 }
 
 @Composable
-fun WatchNextCard(item: WatchNextItem, onClick: () -> Unit) {
+fun WatchNextCard(item: WatchNextItem, app: AppEntry?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Without artwork (or when it fails to load) show the app's banner instead.
+    val fallback = (app?.banner ?: app?.icon)?.let { BitmapPainter(it) }
     Card(
         onClick = onClick,
-        modifier = Modifier.width(288.dp).aspectRatio(16f / 9f),
+        modifier = modifier.aspectRatio(16f / 9f),
         border = CardDefaults.border(focusedBorder = focusBorder),
         scale = CardDefaults.scale(focusedScale = 1.08f),
     ) {
@@ -84,6 +87,8 @@ fun WatchNextCard(item: WatchNextItem, onClick: () -> Unit) {
                 model = item.image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                error = fallback,
+                fallback = fallback,
                 modifier = Modifier.fillMaxSize(),
             )
             Column(

@@ -8,12 +8,12 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.jayked.tvhome.data.AppEntry
 import com.jayked.tvhome.data.AppRepository
+import com.jayked.tvhome.data.ContinueWatching
 import com.jayked.tvhome.data.Photo
 import com.jayked.tvhome.data.Shortcut
 import com.jayked.tvhome.data.Unsplash
 import com.jayked.tvhome.data.WallpaperSettings
 import com.jayked.tvhome.data.WatchNextItem
-import com.jayked.tvhome.data.WatchNextRepository
 import com.jayked.tvhome.data.Weather
 import com.jayked.tvhome.data.WeatherClient
 import com.jayked.tvhome.data.loadShortcuts
@@ -104,7 +104,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val context = getApplication<Application>()
             val apps = withContext(Dispatchers.IO) { repository.loadApps() }
-            val watchNext = withContext(Dispatchers.IO) { WatchNextRepository.load(context) }
+            val watchNext = withContext(Dispatchers.IO) { ContinueWatching.load(context, CONTINUE_WATCHING_LIMIT) }
             val shortcuts = withContext(Dispatchers.IO) { loadShortcuts(context) }
             _state.update {
                 it.copy(
@@ -156,6 +156,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private companion object {
         const val WEATHER_INTERVAL_MS = 30 * 60_000L
         const val WEATHER_RETRY_MS = 2 * 60_000L
+        const val CONTINUE_WATCHING_LIMIT = 5
         const val WALLPAPER_INTERVAL_MS = 60_000L
         const val WALLPAPER_RETRY_MS = 5 * 60_000L
     }
