@@ -65,7 +65,8 @@ class MediaHistory(private val context: Context) {
     /** Stores a session's artwork bitmap, since apps' own artwork URIs are often unreadable to us. */
     fun saveArtwork(media: WatchedMedia, bitmap: Bitmap): String {
         artworkDir.mkdirs()
-        val target = File(artworkDir, "${(media.packageName + media.title).hashCode().toUInt()}.jpg")
+        // Size in the name: a different image for the same title (e.g. a logo, then real artwork) gets its own file.
+        val target = File(artworkDir, "${(media.packageName + media.title).hashCode().toUInt()}-${bitmap.width}x${bitmap.height}.jpg")
         if (!target.exists()) {
             val scaled = if (bitmap.width > ARTWORK_WIDTH) {
                 bitmap.scale(ARTWORK_WIDTH, bitmap.height * ARTWORK_WIDTH / bitmap.width)
@@ -172,19 +173,23 @@ class MediaHistoryService : NotificationListenerService() {
             title = title,
             subtitle = metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
                 ?: metadata.text(MediaMetadata.METADATA_KEY_ARTIST)
-                ?: prime?.subtitle,
+                ?: prime?.subtitle
+                ?: metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION),
             artwork = null,
             positionMs = state.position.takeIf { it > 0 },
             durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 },
             watchedAt = System.currentTimeMillis(),
         )
-        val bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-            ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
-            ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-        val artwork = bitmap?.let { history.saveArtwork(media, it) }
-            ?: metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
+        // Real artwork first; the display icon can be just the app's logo (Spotify).
+        val art = listOf(MediaMetadata.METADATA_KEY_ART, MediaMetadata.METADATA_KEY_ALBUM_ART)
+            .mapNotNull(metadata::getBitmap)
+            .maxByOrNull { it.width * it.height }
+        val artwork = art?.let { history.saveArtwork(media, it) }
             ?: metadata.text(MediaMetadata.METADATA_KEY_ART_URI)
+            ?: metadata.text(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+            ?: metadata.text(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
             ?: prime?.image
+            ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)?.let { history.saveArtwork(media, it) }
         history.record(media.copy(artwork = artwork))
         controller.sessionActivity?.let { MediaHistory.sessionActivities[MediaHistory.key(media.packageName, title)] = it }
     }
@@ -217,7 +222,6 @@ class MediaHistoryService : NotificationListenerService() {
     private companion object {
         // Music apps that don't declare android:appCategory="audio".
         val MUSIC_APPS = setOf(
-            "com.spotify.tv.android",
             "com.google.android.youtube.tvmusic",
             "com.amazon.music.tv",
             "deezer.android.tv",
