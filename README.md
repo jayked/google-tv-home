@@ -33,18 +33,18 @@ This builds, installs and opens the app. On first launch it may ask for access t
 
 ## Make it the home screen
 
-Chromecast with Google TV has no setting to pick a launcher, so the script disables the
-stock one:
+Chromecast with Google TV can't switch launchers, and disabling the stock one leaves Home
+broken. Instead, TV Home's accessibility service catches the Home button and opens TV Home,
+and also takes over whenever the Google TV home screen appears (e.g. after Back out of an app):
 
 ```sh
-scripts/takeover.sh on      # Home button now opens TV Home
-scripts/takeover.sh off     # restore the stock Google TV home
-scripts/takeover.sh status  # show which activity handles Home
+scripts/takeover.sh on      # Home button opens TV Home
+scripts/takeover.sh off     # Home button opens Google TV again
+scripts/takeover.sh status
 ```
 
-With the stock launcher disabled you lose Google TV's own home features: profiles,
-the ambient/screensaver integration and the Google account recommendations. Turn it
-back on before installing system updates if something misbehaves.
+Long-pressing Home no longer opens Google TV's side panel; use the settings icons in TV Home's
+top-right menu instead.
 
 ## Weather location
 

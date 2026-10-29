@@ -33,4 +33,6 @@
     <string name="cancel">Annuleren</string>
     <string name="photo_credit">Foto van %1$s op Unsplash</string>
     <string name="unsplash_missing_key">Voeg een Unsplash-toegangssleutel toe aan local.properties om foto\'s te tonen.</string>
+
+    <string name="home_button_service_description">Opent TV Home wanneer je op de homeknop drukt.</string>
 </resources>

@@ -35,4 +35,6 @@
     <string name="cancel">Cancel</string>
     <string name="photo_credit">Photo by %1$s on Unsplash</string>
     <string name="unsplash_missing_key">Add an Unsplash access key to local.properties to show photos.</string>
+
+    <string name="home_button_service_description">Opens TV Home when you press the Home button.</string>
 </resources>

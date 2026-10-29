@@ -7,7 +7,7 @@ import android.media.tv.TvInputManager
 import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Input
+import androidx.compose.material.icons.automirrored.filled.Input
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsRemote
 import androidx.compose.material.icons.filled.Tv
@@ -24,7 +24,7 @@ fun loadShortcuts(context: Context): List<Shortcut> {
         .map {
             Shortcut(
                 label = it.loadLabel(context).toString(),
-                icon = Icons.Default.Input,
+                icon = Icons.AutoMirrored.Filled.Input,
                 intent = Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(it.id)),
             )
         }
