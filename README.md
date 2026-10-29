@@ -49,7 +49,7 @@ back on before installing system updates if something misbehaves.
 ## Weather location
 
 By default the location comes from the TV's IP address (ipwho.is). To set it yourself,
-fill these in `gradle.properties` and reinstall:
+add these to `local.properties` (or `gradle.properties`) and reinstall:
 
 ```properties
 tvhome.weather.lat=52.37
