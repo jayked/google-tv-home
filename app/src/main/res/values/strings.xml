@@ -28,4 +28,11 @@
     <string name="weather_rain">Rain</string>
     <string name="weather_snow">Snow</string>
     <string name="weather_thunderstorm">Thunderstorm</string>
+
+    <string name="wallpaper">Wallpaper</string>
+    <string name="wallpaper_query_label">Search Unsplash for</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="photo_credit">Photo by %1$s on Unsplash</string>
+    <string name="unsplash_missing_key">Add an Unsplash access key to local.properties to show photos.</string>
 </resources>

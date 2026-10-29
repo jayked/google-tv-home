@@ -57,8 +57,22 @@ tvhome.weather.lon=4.90
 tvhome.weather.place=Amsterdam
 ```
 
+## Wallpaper
+
+The background shows a new [Unsplash](https://unsplash.com) photo every minute. Create a free
+app at <https://unsplash.com/oauth/applications> and put its access key in `local.properties`
+(not committed), then reinstall:
+
+```properties
+unsplash.access_key=YOUR_ACCESS_KEY
+```
+
+Change the search phrase (default "landscape") from the wallpaper icon in the top-right menu.
+Without a key the background stays plain dark.
+
 ## Limits
 
 Continue watching only shows apps that publish to Android's Watch Next provider. Google TV's
 stock row also uses Google server-side data, so some apps (often Netflix and some
 Google-integrated services) may not appear here.
+

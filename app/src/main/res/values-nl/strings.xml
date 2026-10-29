@@ -26,4 +26,11 @@
     <string name="weather_rain">Regen</string>
     <string name="weather_snow">Sneeuw</string>
     <string name="weather_thunderstorm">Onweer</string>
+
+    <string name="wallpaper">Achtergrond</string>
+    <string name="wallpaper_query_label">Zoeken op Unsplash naar</string>
+    <string name="save">Opslaan</string>
+    <string name="cancel">Annuleren</string>
+    <string name="photo_credit">Foto van %1$s op Unsplash</string>
+    <string name="unsplash_missing_key">Voeg een Unsplash-toegangssleutel toe aan local.properties om foto\'s te tonen.</string>
 </resources>

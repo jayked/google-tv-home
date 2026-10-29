@@ -3,18 +3,26 @@ package com.jayked.tvhome
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.jayked.tvhome.data.AppEntry
 import com.jayked.tvhome.data.AppRepository
+import com.jayked.tvhome.data.Photo
 import com.jayked.tvhome.data.Shortcut
+import com.jayked.tvhome.data.Unsplash
+import com.jayked.tvhome.data.WallpaperSettings
 import com.jayked.tvhome.data.WatchNextItem
 import com.jayked.tvhome.data.WatchNextRepository
 import com.jayked.tvhome.data.Weather
 import com.jayked.tvhome.data.WeatherClient
 import com.jayked.tvhome.data.loadShortcuts
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,12 +34,19 @@ data class HomeState(
     val watchNext: List<WatchNextItem> = emptyList(),
     val shortcuts: List<Shortcut> = emptyList(),
     val weather: Weather? = null,
+    val wallpaper: Photo? = null,
+    val wallpaperQuery: String = WallpaperSettings.DEFAULT_QUERY,
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val repository = AppRepository(app)
-    private val _state = MutableStateFlow(HomeState())
+    private val wallpaperSettings = WallpaperSettings(app)
+    private val _state = MutableStateFlow(HomeState(wallpaperQuery = wallpaperSettings.query))
     val state = _state.asStateFlow()
+
+    /** Whether the home screen is on screen; wallpaper rotation pauses while another app is open. */
+    private val visible = MutableStateFlow(false)
+    private var wallpaperJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -39,6 +54,47 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val weather = withContext(Dispatchers.IO) { runCatching { WeatherClient.fetch() }.getOrNull() }
                 if (weather != null) _state.update { it.copy(weather = weather) }
                 delay(if (weather != null) WEATHER_INTERVAL_MS else WEATHER_RETRY_MS)
+            }
+        }
+        startWallpaper()
+    }
+
+    fun setVisible(visible: Boolean) {
+        this.visible.value = visible
+    }
+
+    fun setWallpaperQuery(query: String) {
+        val trimmed = query.trim().ifEmpty { WallpaperSettings.DEFAULT_QUERY }
+        wallpaperSettings.query = trimmed
+        _state.update { it.copy(wallpaperQuery = trimmed) }
+        startWallpaper()
+    }
+
+    /** Shows a new Unsplash photo every minute while the home screen is visible. */
+    private fun startWallpaper() {
+        if (!Unsplash.isConfigured) return
+        wallpaperJob?.cancel()
+        wallpaperJob = viewModelScope.launch {
+            val app = getApplication<Application>()
+            val query = _state.value.wallpaperQuery
+            val queue = ArrayDeque<Photo>()
+            while (true) {
+                visible.first { it }
+                if (queue.isEmpty()) {
+                    val photos = withContext(Dispatchers.IO) { runCatching { Unsplash.randomPhotos(query) }.getOrNull() }
+                    if (photos.isNullOrEmpty()) {
+                        delay(WALLPAPER_RETRY_MS)
+                        continue
+                    }
+                    queue.addAll(photos)
+                }
+                val photo = queue.removeFirst()
+                // Load the photo fully before showing it, so the crossfade never fades to an empty frame.
+                val request = ImageRequest.Builder(app).data(photo.imageUrl).build()
+                if (app.imageLoader.execute(request) !is SuccessResult) continue
+                _state.update { it.copy(wallpaper = photo) }
+                withContext(Dispatchers.IO) { runCatching { Unsplash.trackDownload(photo) } }
+                delay(WALLPAPER_INTERVAL_MS)
             }
         }
     }
@@ -100,5 +156,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private companion object {
         const val WEATHER_INTERVAL_MS = 30 * 60_000L
         const val WEATHER_RETRY_MS = 2 * 60_000L
+        const val WALLPAPER_INTERVAL_MS = 60_000L
+        const val WALLPAPER_RETRY_MS = 5 * 60_000L
     }
 }

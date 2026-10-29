@@ -4,10 +4,13 @@ import android.content.Intent
 import android.os.SystemClock
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
@@ -28,8 +31,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +55,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -56,6 +65,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -71,7 +83,8 @@ import coil.compose.AsyncImage
 import com.jayked.tvhome.HomeState
 import com.jayked.tvhome.R
 import com.jayked.tvhome.data.AppEntry
-import com.jayked.tvhome.data.Shortcut
+import com.jayked.tvhome.data.Photo
+import com.jayked.tvhome.data.Unsplash
 import com.jayked.tvhome.data.WatchNextItem
 import com.jayked.tvhome.data.Weather
 import java.util.Date
@@ -101,6 +114,8 @@ private val ScrollOnlyWhenNeeded = object : BringIntoViewSpec {
     }
 }
 
+private class MenuEntry(val label: String, val icon: ImageVector, val onClick: () -> Unit)
+
 /** An app tile, and whether it was picked in the Favorites row or in the Apps grid. */
 private data class AppTarget(val app: AppEntry, val inFavorites: Boolean)
 
@@ -113,8 +128,13 @@ fun HomeScreen(
     onToggleFavorite: (String) -> Unit,
     onMoveFavorite: (String, Int) -> Unit,
     onMoveApp: (String, Int) -> Unit,
+    onSetWallpaperQuery: (String) -> Unit,
     onAppInfo: (String) -> Unit,
 ) {
+    var showWallpaperSettings by remember { mutableStateOf(false) }
+    val wallpaperLabel = stringResource(R.string.wallpaper)
+    val menuEntries = listOf(MenuEntry(wallpaperLabel, Icons.Default.Wallpaper) { showWallpaperSettings = true }) +
+        state.shortcuts.map { shortcut -> MenuEntry(shortcut.label, shortcut.icon) { onLaunch(shortcut.intent) } }
     var menuTarget by remember { mutableStateOf<AppTarget?>(null) }
     var moving by remember { mutableStateOf<AppTarget?>(null) }
     val listState = rememberLazyListState()
@@ -177,12 +197,13 @@ fun HomeScreen(
                     true
                 },
         ) {
+            Wallpaper(state.wallpaper)
             LazyColumn(
                 state = listState,
                 contentPadding = PaddingValues(bottom = 64.dp),
                 verticalArrangement = Arrangement.spacedBy(32.dp),
             ) {
-                item { TopBar(state.weather, state.shortcuts, onLaunch) }
+                item { TopBar(state.weather, menuEntries) }
                 if (hero != null) {
                     item { Hero(hero, Modifier.focusRequester(initialFocus).then(revealTopBar)) { onLaunch(hero.intent) } }
                 }
@@ -249,7 +270,19 @@ fun HomeScreen(
                     }
                 }
             }
+            state.wallpaper?.let { PhotoCredit(it, Modifier.align(Alignment.BottomEnd)) }
         }
+    }
+
+    if (showWallpaperSettings) {
+        WallpaperDialog(
+            query = state.wallpaperQuery,
+            onDismiss = { showWallpaperSettings = false },
+            onSave = { query ->
+                onSetWallpaperQuery(query)
+                showWallpaperSettings = false
+            },
+        )
     }
 
     menuTarget?.let { target ->
@@ -278,6 +311,42 @@ fun HomeScreen(
             },
         )
     }
+}
+
+/** The current Unsplash photo, crossfading to the next, darkened so text and tiles stay readable. */
+@Composable
+private fun Wallpaper(photo: Photo?) {
+    Crossfade(
+        targetState = photo,
+        animationSpec = tween(durationMillis = 2_000),
+        modifier = Modifier.fillMaxSize(),
+        label = "wallpaper",
+    ) { current ->
+        if (current != null) {
+            AsyncImage(
+                model = current.imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.8f)))),
+    )
+}
+
+/** Unsplash requires crediting the photographer wherever a photo is shown. */
+@Composable
+private fun PhotoCredit(photo: Photo, modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(R.string.photo_credit, photo.photographer),
+        style = MaterialTheme.typography.labelSmall,
+        color = Color.White.copy(alpha = 0.7f),
+        modifier = modifier.padding(end = Gutter, bottom = 12.dp),
+    )
 }
 
 @Composable
@@ -311,7 +380,7 @@ private fun SectionTitle(title: String, hint: String? = null) {
 }
 
 @Composable
-private fun TopBar(weather: Weather?, shortcuts: List<Shortcut>, onLaunch: (Intent) -> Unit) {
+private fun TopBar(weather: Weather?, entries: List<MenuEntry>) {
     // The settings menu stays focusable but invisible until focus moves up into it; it then
     // fades in over the weather.
     var menuFocused by remember { mutableStateOf(false) }
@@ -333,19 +402,19 @@ private fun TopBar(weather: Weather?, shortcuts: List<Shortcut>, onLaunch: (Inte
                     .onFocusChanged { menuFocused = it.hasFocus },
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    shortcuts.forEachIndexed { index, shortcut ->
+                    entries.forEachIndexed { index, entry ->
                         IconButton(
-                            onClick = { onLaunch(shortcut.intent) },
+                            onClick = entry.onClick,
                             modifier = Modifier
-                                .onFocusChanged { if (it.isFocused) focusedLabel = shortcut.label }
+                                .onFocusChanged { if (it.isFocused) focusedLabel = entry.label }
                                 // Only Down leaves the menu.
                                 .focusProperties {
                                     up = FocusRequester.Cancel
                                     if (index == 0) left = FocusRequester.Cancel
-                                    if (index == shortcuts.lastIndex) right = FocusRequester.Cancel
+                                    if (index == entries.lastIndex) right = FocusRequester.Cancel
                                 },
                         ) {
-                            Icon(shortcut.icon, contentDescription = shortcut.label)
+                            Icon(entry.icon, contentDescription = entry.label)
                         }
                     }
                 }
@@ -440,6 +509,62 @@ private fun Hero(item: WatchNextItem, buttonModifier: Modifier, onResume: () -> 
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.resume))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WallpaperDialog(query: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(TextFieldValue(query, selection = TextRange(query.length))) }
+    var fieldFocused by remember { mutableStateOf(false) }
+    val field = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            colors = SurfaceDefaults.colors(containerColor = Color(0xFF2A2B30)),
+        ) {
+            Column(
+                modifier = Modifier.padding(28.dp).width(440.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(stringResource(R.string.wallpaper), style = MaterialTheme.typography.headlineSmall, color = Color.White)
+                Text(
+                    text = stringResource(R.string.wallpaper_query_label),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(color = Color.White),
+                    cursorBrush = SolidColor(Color.White),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onSave(text.text) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(field)
+                        .onFocusChanged { fieldFocused = it.isFocused }
+                        .border(
+                            width = 2.dp,
+                            color = if (fieldFocused) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+                if (!Unsplash.isConfigured) {
+                    Text(
+                        text = stringResource(R.string.unsplash_missing_key),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFF28B82),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { onSave(text.text) }) { Text(stringResource(R.string.save)) }
+                    OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+                }
             }
         }
     }

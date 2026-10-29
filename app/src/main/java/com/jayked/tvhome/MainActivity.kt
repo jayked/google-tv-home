@@ -46,12 +46,23 @@ class MainActivity : ComponentActivity() {
                     onToggleFavorite = viewModel::toggleFavorite,
                     onMoveFavorite = viewModel::moveFavorite,
                     onMoveApp = viewModel::moveApp,
+                    onSetWallpaperQuery = viewModel::setWallpaperQuery,
                     onAppInfo = { packageName ->
                         launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
                     },
                 )
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        viewModel.setVisible(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.setVisible(false)
     }
 
     override fun onResume() {

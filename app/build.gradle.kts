@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,6 +7,11 @@ plugins {
 }
 
 fun prop(name: String) = (project.findProperty(name) as String?).orEmpty()
+
+// Secrets live in local.properties, which is not committed.
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
+}
 
 android {
     namespace = "com.jayked.tvhome"
@@ -20,6 +27,7 @@ android {
         buildConfigField("String", "WEATHER_LAT", "\"${prop("tvhome.weather.lat")}\"")
         buildConfigField("String", "WEATHER_LON", "\"${prop("tvhome.weather.lon")}\"")
         buildConfigField("String", "WEATHER_PLACE", "\"${prop("tvhome.weather.place")}\"")
+        buildConfigField("String", "UNSPLASH_ACCESS_KEY", "\"${localProperties.getProperty("unsplash.access_key").orEmpty()}\"")
     }
 
     buildTypes {
