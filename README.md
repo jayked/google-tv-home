@@ -96,6 +96,29 @@ say which is which.
 Whatever is still playing behind the home screen (music, or a stream left running) moves to the
 front of the row with an animated "Playing" badge, and drops back once it pauses or stops.
 
+When an episode is watched into its credits (95% or more), its tile shows the next episode
+instead: number, name and still from TMDB. That needs a TMDB key and an app that reports season
+and episode numbers. TMDB only knows the original air dates, and apps often release episodes
+later, so the next episode appears only once it's likely out in the app too.
+
+## Supported services
+
+What each app's tile in Continue watching shows, as tested on a Chromecast with Google TV in the
+Netherlands. Any app that reports what it plays through a media session gets a tile, and so does
+any app that publishes to Watch Next; those not listed show whatever they report.
+
+| Service      | Title | Details                | Artwork             | Progress | Next episode | Playing badge |
+| ------------ | :---: | ---------------------- | ------------------- | :------: | :----------: | :-----------: |
+| Disney+      |   ✅   | Season and episode     | From TMDB           |    ✅     |      ✅       |       ✅       |
+| Prime Video  |   ✅¹  | Season                 | From primevideo.com |    ❌     |      ❌       |       ✅       |
+| NPO Start    |   ✅   | Description            | ✅                   |    ✅     |      ❌       |       ✅       |
+| NLZiet       |   ✅   | Description            | ✅                   |    ❌     |      ❌       |       ✅       |
+| YouTube      |   ✅   | Channel                | ✅                   |    ✅     |      ❌       |       ✅       |
+| Spotify      |   ✅   | Artist or show         | ✅                   |    ✅     |      ❌       |       ✅       |
+| Netflix      |   ❌   | ❌                      | ❌                   |    ❌     |      ❌       |       ❌       |
+
+¹ Prime Video reports only a content ID; the title is looked up on primevideo.com.
+
 ## Limits
 
 Continue watching only shows apps that publish to Android's Watch Next provider. Google TV's
