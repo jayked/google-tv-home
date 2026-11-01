@@ -19,6 +19,8 @@ data class WatchNextItem(
     val lastWatched: Long,
     /** Reopens the app's player directly; set while the app's media session is still around. */
     val sessionActivity: PendingIntent? = null,
+    /** Playing right now, e.g. a stream left running behind the home screen. */
+    val playing: Boolean = false,
 )
 
 /**
@@ -41,6 +43,7 @@ object ContinueWatching {
     fun load(context: Context, limit: Int): List<WatchNextItem> {
         val pm = context.packageManager
         val history = MediaHistory(context)
+        val playing = MediaHistory.playing.value
         val fromSessions = history.load().take(limit).map { media -> media.withLookedUpArtwork(history) }.mapNotNull { media ->
             // Not FLAG_ACTIVITY_RESET_TASK_IF_NEEDED: bring the app's task back as it was left.
             val intent = pm.getLeanbackLaunchIntentForPackage(media.packageName)
@@ -56,10 +59,12 @@ object ContinueWatching {
                 intent = intent,
                 lastWatched = media.watchedAt,
                 sessionActivity = MediaHistory.sessionActivities[MediaHistory.key(media.packageName, media.title)],
+                playing = MediaHistory.key(media.packageName, media.title) in playing,
             )
         }
         return (WatchNextRepository.load(context) + fromSessions)
-            .sortedByDescending { it.lastWatched }
+            // What's playing comes first, ahead of its own Watch Next entry.
+            .sortedWith(compareByDescending<WatchNextItem> { it.playing }.thenByDescending { it.lastWatched })
             .distinctBy { it.packageName to it.title.lowercase() }
             .take(limit)
     }

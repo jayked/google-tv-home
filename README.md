@@ -93,6 +93,9 @@ Music apps share a single tile showing the last song played. Audio of 20 minutes
 (podcast episodes, audiobooks) gets its own tile like a video, since apps such as Spotify don't
 say which is which.
 
+Whatever is still playing behind the home screen (music, or a stream left running) moves to the
+front of the row with an animated "Playing" badge, and drops back once it pauses or stops.
+
 ## Limits
 
 Continue watching only shows apps that publish to Android's Watch Next provider. Google TV's

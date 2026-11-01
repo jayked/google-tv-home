@@ -1,6 +1,7 @@
 <resources>
     <string name="continue_watching">Verder kijken</string>
     <string name="resume">Hervatten</string>
+    <string name="now_playing">Speelt af</string>
     <string name="favorites">Favorieten</string>
     <string name="apps">Apps</string>
     <string name="move_hint_row">◀ ▶ om te verplaatsen · OK om te voltooien</string>

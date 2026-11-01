@@ -3,6 +3,7 @@
 
     <string name="continue_watching">Continue watching</string>
     <string name="resume">Resume</string>
+    <string name="now_playing">Playing</string>
     <string name="favorites">Favorites</string>
     <string name="apps">Apps</string>
     <string name="move_hint_row">◀ ▶ to move · OK to finish</string>

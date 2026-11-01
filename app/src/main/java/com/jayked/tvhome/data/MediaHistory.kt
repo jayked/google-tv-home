@@ -19,6 +19,8 @@ import java.io.File
 import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -111,6 +113,15 @@ class MediaHistory(private val context: Context) {
          */
         val sessionActivities = ConcurrentHashMap<String, PendingIntent>()
 
+        private val _playing = MutableStateFlow<Set<String>>(emptySet())
+
+        /** Keys ([key]) of what is playing right now, e.g. music or a stream left running behind the home screen. */
+        val playing = _playing.asStateFlow()
+
+        internal fun setPlaying(keys: Set<String>) {
+            _playing.value = keys
+        }
+
         fun key(packageName: String, title: String) = "$packageName|${title.lowercase()}"
 
         private val lock = Any()
@@ -127,6 +138,9 @@ class MediaHistoryService : NotificationListenerService() {
     private lateinit var history: MediaHistory
     private lateinit var sessionManager: MediaSessionManager
     private val tracked = mutableMapOf<MediaSession.Token, Pair<MediaController, MediaController.Callback>>()
+
+    /** The history key each session last recorded, to tell which items are playing now. */
+    private val keys = mutableMapOf<MediaSession.Token, String>()
     private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener { track(it.orEmpty()) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lookups = Executors.newSingleThreadExecutor()
@@ -151,16 +165,32 @@ class MediaHistoryService : NotificationListenerService() {
         val activeTokens = active.map { it.sessionToken }.toSet()
         tracked.keys.filter { it !in activeTokens }.forEach { token ->
             tracked.remove(token)?.let { (controller, callback) -> controller.unregisterCallback(callback) }
+            keys.remove(token)
         }
         active.filter { it.sessionToken !in tracked && it.packageName != packageName && it.packageName !in IGNORED_APPS }.forEach { controller ->
             val callback = object : MediaController.Callback() {
-                override fun onMetadataChanged(metadata: MediaMetadata?) = record(controller)
-                override fun onPlaybackStateChanged(state: PlaybackState?) = record(controller)
+                override fun onMetadataChanged(metadata: MediaMetadata?) = update(controller)
+                override fun onPlaybackStateChanged(state: PlaybackState?) = update(controller)
             }
             controller.registerCallback(callback)
             tracked[controller.sessionToken] = controller to callback
             record(controller)
         }
+        publishPlaying()
+    }
+
+    private fun update(controller: MediaController) {
+        record(controller)
+        publishPlaying()
+    }
+
+    private fun publishPlaying() {
+        MediaHistory.setPlaying(
+            tracked.values
+                .filter { (controller, _) -> controller.playbackState?.state == PlaybackState.STATE_PLAYING }
+                .mapNotNull { (controller, _) -> keys[controller.sessionToken] }
+                .toSet(),
+        )
     }
 
     private fun record(controller: MediaController) {
@@ -195,7 +225,9 @@ class MediaHistoryService : NotificationListenerService() {
             ?: prime?.image
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)?.let { history.saveArtwork(media, it) }
         history.record(media.copy(artwork = artwork))
-        controller.sessionActivity?.let { MediaHistory.sessionActivities[MediaHistory.key(media.packageName, title)] = it }
+        val key = MediaHistory.key(media.packageName, title)
+        keys[controller.sessionToken] = key
+        controller.sessionActivity?.let { MediaHistory.sessionActivities[key] = it }
     }
 
     /**
@@ -210,7 +242,7 @@ class MediaHistoryService : NotificationListenerService() {
         lookups.execute {
             val details = runCatching { PrimeVideo.details(contentId) }.getOrNull() ?: return@execute
             primeDetails[contentId] = Optional.of(details)
-            mainHandler.post { record(controller) }
+            mainHandler.post { update(controller) }
         }
         return null
     }

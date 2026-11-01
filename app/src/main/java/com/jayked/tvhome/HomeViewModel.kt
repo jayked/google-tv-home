@@ -9,6 +9,7 @@ import coil.request.SuccessResult
 import com.jayked.tvhome.data.AppEntry
 import com.jayked.tvhome.data.AppRepository
 import com.jayked.tvhome.data.ContinueWatching
+import com.jayked.tvhome.data.MediaHistory
 import com.jayked.tvhome.data.Photo
 import com.jayked.tvhome.data.Shortcut
 import com.jayked.tvhome.data.Unsplash
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -55,6 +57,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val weather = withContext(Dispatchers.IO) { runCatching { WeatherClient.fetch() }.getOrNull() }
                 if (weather != null) _state.update { it.copy(weather = weather) }
                 delay(if (weather != null) WEATHER_INTERVAL_MS else WEATHER_RETRY_MS)
+            }
+        }
+        viewModelScope.launch {
+            // Starting, stopping or switching playback changes what the row shows first.
+            MediaHistory.playing.drop(1).collect {
+                val context = getApplication<Application>()
+                val watchNext = withContext(Dispatchers.IO) { ContinueWatching.load(context, CONTINUE_WATCHING_LIMIT) }
+                _state.update { state -> state.copy(watchNext = watchNext) }
             }
         }
         startWallpaper()
