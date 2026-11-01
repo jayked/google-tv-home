@@ -6,6 +6,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.tv.TvContract.WatchNextPrograms
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 
 data class WatchNextItem(
@@ -40,6 +45,30 @@ object ContinueWatching {
         return copy(artwork = found)
     }
 
+    /** Next-episode lookups by series and episode; empty after a miss, so it isn't retried. */
+    private val nextEpisodes = ConcurrentHashMap<String, Optional<Pair<Tmdb.Episode, Tmdb.Episode>>>()
+
+    /**
+     * For an episode watched to the end (into the credits), the one after it, found on TMDB, once
+     * it is likely out in the app too.
+     */
+    private fun WatchedMedia.nextEpisode(): Tmdb.Episode? {
+        val position = positionMs ?: return null
+        val duration = durationMs ?: return null
+        if (position < duration * FINISHED || !Tmdb.isConfigured) return null
+        // e.g. Disney+'s "S4: Afl. 7 Bears" or "S4:E7 Bears"
+        val match = EPISODE.find(subtitle ?: return null) ?: return null
+        val (season, episode) = match.destructured
+        val (current, next) = nextEpisodes.getOrPut("${title.lowercase()}|$season|$episode") {
+            Optional.ofNullable(runCatching { Tmdb.nextEpisode(title, season.toInt(), episode.toInt()) }.getOrNull())
+        }.orElse(null) ?: return null
+        // TMDB has the original air dates; apps here often release later. How long after its air
+        // date this episode was watched bounds that delay; capped, so a years-old show counts as out.
+        val watched = Instant.ofEpochMilli(watchedAt).atZone(ZoneId.systemDefault()).toLocalDate()
+        val delay = ChronoUnit.DAYS.between(current.aired, watched).coerceIn(0, MAX_RELEASE_DELAY_DAYS)
+        return next.takeUnless { it.aired.plusDays(delay).isAfter(LocalDate.now()) }
+    }
+
     fun load(context: Context, limit: Int): List<WatchNextItem> {
         val pm = context.packageManager
         val history = MediaHistory(context)
@@ -49,13 +78,14 @@ object ContinueWatching {
             val intent = pm.getLeanbackLaunchIntentForPackage(media.packageName)
                 ?: pm.getLaunchIntentForPackage(media.packageName)
                 ?: return@mapNotNull null
+            val next = media.nextEpisode()
             WatchNextItem(
                 id = "session:${media.packageName}:${media.title}",
                 packageName = media.packageName,
                 title = media.title,
-                subtitle = media.subtitle,
-                image = media.artwork,
-                progress = progress(media.positionMs, media.durationMs),
+                subtitle = next?.let { listOfNotNull("S${it.season}E${it.number}", it.name).joinToString(" · ") } ?: media.subtitle,
+                image = next?.still ?: media.artwork,
+                progress = if (next != null) null else progress(media.positionMs, media.durationMs),
                 intent = intent,
                 lastWatched = media.watchedAt,
                 sessionActivity = MediaHistory.sessionActivities[MediaHistory.key(media.packageName, media.title)],
@@ -68,6 +98,13 @@ object ContinueWatching {
             .distinctBy { it.packageName to it.title.lowercase() }
             .take(limit)
     }
+
+    private const val MAX_RELEASE_DELAY_DAYS = 30L
+
+    /** Watched this far, an episode is done: what's left is credits. */
+    private const val FINISHED = 0.95
+
+    private val EPISODE = Regex("""^S(?:eason|eizoen)?\s*(\d+)(?!\d)\W*(?:E|Ep|Episode|Afl|Aflevering)?\.?\s*(\d+)\b""", RegexOption.IGNORE_CASE)
 }
 
 private fun progress(position: Long?, duration: Long?) =
