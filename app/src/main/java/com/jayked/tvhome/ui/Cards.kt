@@ -45,6 +45,7 @@ import com.jayked.tvhome.data.AppEntry
 import com.jayked.tvhome.data.WatchNextItem
 
 private val focusBorder = Border(BorderStroke(3.dp, Color.White))
+private val cardShape = CardDefaults.shape(RoundedCornerShape(12.dp))
 
 @Composable
 fun AppCard(
@@ -58,6 +59,7 @@ fun AppCard(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier.aspectRatio(16f / 9f),
+        shape = cardShape,
         border = CardDefaults.border(
             focusedBorder = if (moving) Border(BorderStroke(4.dp, MaterialTheme.colorScheme.primary)) else focusBorder,
         ),
@@ -91,6 +93,7 @@ fun WatchNextCard(item: WatchNextItem, app: AppEntry?, onClick: () -> Unit, modi
     Card(
         onClick = onClick,
         modifier = modifier.aspectRatio(16f / 9f),
+        shape = cardShape,
         border = CardDefaults.border(focusedBorder = focusBorder),
         scale = CardDefaults.scale(focusedScale = 1.08f),
     ) {
