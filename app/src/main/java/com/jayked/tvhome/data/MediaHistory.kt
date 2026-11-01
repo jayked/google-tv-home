@@ -34,6 +34,8 @@ data class WatchedMedia(
     val watchedAt: Long,
     /** A song: all music shares one place in the history, holding the last one played. */
     val isMusic: Boolean = false,
+    /** From an audio app: a song or a podcast episode, rather than a video. */
+    val isAudio: Boolean = false,
 )
 
 /** What video apps reported playing through their media sessions, newest first. */
@@ -94,6 +96,7 @@ class MediaHistory(private val context: Context) {
         .putOpt("duration", durationMs)
         .put("watchedAt", watchedAt)
         .put("music", isMusic)
+        .put("audio", isAudio)
 
     private fun JSONObject.toMedia() = WatchedMedia(
         packageName = getString("package"),
@@ -104,6 +107,7 @@ class MediaHistory(private val context: Context) {
         durationMs = if (has("duration")) getLong("duration") else null,
         watchedAt = getLong("watchedAt"),
         isMusic = optBoolean("music"),
+        isAudio = optBoolean("audio"),
     )
 
     companion object {
@@ -213,7 +217,10 @@ class MediaHistoryService : NotificationListenerService() {
             positionMs = state.position.takeIf { it > 0 },
             durationMs = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 },
             watchedAt = System.currentTimeMillis(),
-        ).let { it.copy(isMusic = isMusic(controller.packageName, it.durationMs)) }
+        ).let {
+            val audio = isAudioApp(controller.packageName)
+            it.copy(isAudio = audio, isMusic = audio && isMusic(it.durationMs))
+        }
         // Real artwork first; the display icon can be just the app's logo (Spotify).
         val art = listOf(MediaMetadata.METADATA_KEY_ART, MediaMetadata.METADATA_KEY_ALBUM_ART)
             .mapNotNull(metadata::getBitmap)
@@ -251,8 +258,9 @@ class MediaHistoryService : NotificationListenerService() {
      * Songs from audio apps. Apps don't say whether audio is a song or a podcast episode (Spotify
      * plays both), so long audio counts as an episode and gets its own place, like a video.
      */
-    private fun isMusic(packageName: String, durationMs: Long?): Boolean {
-        if (durationMs != null && durationMs >= EPISODE_MIN_MS) return false
+    private fun isMusic(durationMs: Long?) = durationMs == null || durationMs < EPISODE_MIN_MS
+
+    private fun isAudioApp(packageName: String): Boolean {
         if (packageName in AUDIO_APPS) return true
         val info = runCatching { packageManager.getApplicationInfo(packageName, 0) }.getOrNull() ?: return false
         return info.category == ApplicationInfo.CATEGORY_AUDIO

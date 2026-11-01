@@ -79,17 +79,19 @@ object ContinueWatching {
                 ?: pm.getLaunchIntentForPackage(media.packageName)
                 ?: return@mapNotNull null
             val next = media.nextEpisode()
+            val isPlaying = MediaHistory.key(media.packageName, media.title) in playing
             WatchNextItem(
                 id = "session:${media.packageName}:${media.title}",
                 packageName = media.packageName,
                 title = media.title,
                 subtitle = next?.let { listOfNotNull("S${it.season}E${it.number}", it.name).joinToString(" · ") } ?: media.subtitle,
                 image = next?.still ?: media.artwork,
-                progress = if (next != null) null else progress(media.positionMs, media.durationMs),
+                // Audio playing right now moves on by itself: a frozen progress bar would only mislead.
+                progress = if (next != null || (media.isAudio && isPlaying)) null else progress(media.positionMs, media.durationMs),
                 intent = intent,
                 lastWatched = media.watchedAt,
                 sessionActivity = MediaHistory.sessionActivities[MediaHistory.key(media.packageName, media.title)],
-                playing = MediaHistory.key(media.packageName, media.title) in playing,
+                playing = isPlaying,
             )
         }
         return (WatchNextRepository.load(context) + fromSessions)
